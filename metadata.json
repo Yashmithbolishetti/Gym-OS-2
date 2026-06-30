@@ -1,0 +1,6 @@
+{
+  "name": "GymOS",
+  "description": "Premium Gym Management SaaS platform designed for gym owners with multi-tenant architecture and cinematic animations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
