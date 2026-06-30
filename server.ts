@@ -1957,8 +1957,9 @@ When asked to launch or trigger interactive forms or modals (e.g. "add member", 
 
 
 // Mount Vite Middleware for Development / Server Client-Side Static Bundle for Production
-if (process.env.NODE_ENV !== "production") {
-  const { createServer: createViteServer } = await import("vite");
+if (process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1") {
+  const vitePkg = "vite";
+  const { createServer: createViteServer } = await import(vitePkg);
   const vite = await createViteServer({
     server: { middlewareMode: true },
     appType: "spa",
