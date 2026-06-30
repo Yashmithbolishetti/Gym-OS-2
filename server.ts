@@ -599,7 +599,7 @@ function logAction(gymId: string, action: string, description: string) {
     description,
     created_at: new Date().toISOString()
   };
-  db.activities = [log, ...db.activities];
+  db.activities = [log, ...(db.activities || [])];
   saveDB(db);
 }
 
@@ -1956,6 +1956,21 @@ When asked to launch or trigger interactive forms or modals (e.g. "add member", 
 });
 
 
+// Asynchronous helper to mount Vite middleware in development without top-level await
+async function startVite() {
+  try {
+    const vitePkg = "vite";
+    const { createServer: createViteServer } = await import(vitePkg);
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } catch (err) {
+    console.error("Failed to start Vite middleware:", err);
+  }
+}
+
 // Mount Vite Middleware for Development / Server Client-Side Static Bundle for Production
 if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
   const distPath = path.join(process.cwd(), "dist");
@@ -1964,13 +1979,7 @@ if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
     res.sendFile(path.join(distPath, "index.html"));
   });
 } else {
-  const vitePkg = "vite";
-  const { createServer: createViteServer } = await import(vitePkg);
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "spa",
-  });
-  app.use(vite.middlewares);
+  startVite();
 }
 
 // Bind to port 3000 as explicitly restricted by the container ingress reverse proxy
