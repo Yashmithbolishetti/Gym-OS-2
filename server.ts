@@ -442,13 +442,22 @@ function notifySseClients() {
   });
 }
 
+let memoryDbCache: any = null;
+
 function getDB() {
+  if (memoryDbCache) {
+    return memoryDbCache;
+  }
   try {
-    if (!fs.existsSync(DB_FILE)) {
+    let db: any;
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, "utf-8");
+      db = JSON.parse(raw);
+    } else {
       initializeDatabase();
+      const raw = fs.readFileSync(DB_FILE, "utf-8");
+      db = JSON.parse(raw);
     }
-    const raw = fs.readFileSync(DB_FILE, "utf-8");
-    const db = JSON.parse(raw);
     
     // Evaluate subscription expirations dynamically in-place
     let modified = false;
@@ -507,12 +516,18 @@ function getDB() {
     }
     
     if (modified) {
-      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+      } catch (writeErr) {
+        console.warn("Failed to write to database.json during getDB()", writeErr);
+      }
     }
+    memoryDbCache = db;
     return db;
   } catch (e) {
-    console.error("Error reading database file, returning fresh structure", e);
-    return {
+    console.error("Error reading database file, returning memory fallback or fresh structure", e);
+    if (memoryDbCache) return memoryDbCache;
+    const freshDb: any = {
       members: [],
       payments: [],
       activities: [],
@@ -530,18 +545,47 @@ function getDB() {
           name: "Demo Owner",
           phone: "+1 555-0101",
           created_at: "2025-06-19T17:27:03.416Z"
+        },
+        {
+          id: "owner-2",
+          email: "spartan@gymos.com",
+          password: "spartan123",
+          role: "gym_owner",
+          gym_id: "gym-2",
+          status: "pending",
+          name: "Leonidas Spartan",
+          phone: "+1 555-0102",
+          created_at: "2026-06-18T17:27:03.416Z"
+        },
+        {
+          id: "owner-3",
+          email: "iron@gymos.com",
+          password: "iron123",
+          role: "gym_owner",
+          gym_id: "gym-3",
+          status: "pending",
+          name: "Tony Stark",
+          phone: "+1 555-0103",
+          created_at: "2026-06-19T17:27:03.416Z"
         }
       ]
     };
+    memoryDbCache = freshDb;
+    return freshDb;
   }
 }
 
 function saveDB(data: any) {
+  memoryDbCache = data;
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
-    notifySseClients();
   } catch (e) {
-    console.error("Error writing to database.json", e);
+    console.warn("Error writing to database.json", e);
+  }
+  try {
+    notifySseClients();
+  } catch (sseErr) {
+    console.warn("Error notifying sse clients:", sseErr);
   }
 }
 
