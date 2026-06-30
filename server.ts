@@ -51,7 +51,6 @@ function getSupabaseAdmin(db?: any) {
   return createClient(finalUrl, finalKey);
 }
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import crypto from "crypto";
 
@@ -1915,6 +1914,7 @@ When asked to launch or trigger interactive forms or modals (e.g. "add member", 
 
 // Mount Vite Middleware for Development / Server Client-Side Static Bundle for Production
 if (process.env.NODE_ENV !== "production") {
+  const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
     server: { middlewareMode: true },
     appType: "spa",
