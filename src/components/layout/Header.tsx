@@ -24,14 +24,20 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu size={20} />
           </button>
         )}
-        {gym && (
+        {(gym || user?.role === 'super_admin') && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-4"
           >
-            <h1 className="text-base sm:text-xl font-semibold tracking-tight text-white line-clamp-1">{settings.gym_name || gym.name} Dashboard</h1>
-            {user?.email === 'demo@gymos.com' ? (
+            <h1 className="text-base sm:text-xl font-semibold tracking-tight text-white line-clamp-1">
+              {user?.role === 'super_admin' ? 'GymOS Admin Console' : (settings.gym_name || gym?.name || 'Gym') + ' Dashboard'}
+            </h1>
+            {user?.role === 'super_admin' ? (
+              <span className="px-2.5 py-1 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold rounded-[6px] uppercase tracking-wider">
+                System Root
+              </span>
+            ) : user?.email === 'demo@gymos.com' ? (
               <span className="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold rounded-[6px] uppercase tracking-wider">
                 Demo Sandbox
               </span>

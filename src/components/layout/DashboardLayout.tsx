@@ -524,7 +524,7 @@ export default function DashboardLayout() {
       {/* ======================================================== */}
       {/* STICKY QUICK ACTIONS SHELF                               */}
       {/* ======================================================== */}
-      {!isAdvisoryOpenOnNotifications && (
+      {!isAdvisoryOpenOnNotifications && user?.role === 'gym_owner' && (
         <div className="fixed bottom-0 left-0 right-0 lg:bottom-6 lg:left-[270px] lg:right-6 flex flex-col items-center gap-3 z-40 px-4 pointer-events-none">
           
           {/* Sleek Horizontal Quick Action pill items (Desktop: Floating, Tablet: Compact icons deck, Mobile: hidden) */}

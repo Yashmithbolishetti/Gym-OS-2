@@ -1957,9 +1957,13 @@ When asked to launch or trigger interactive forms or modals (e.g. "add member", 
 
 
 // Mount Vite Middleware for Development / Server Client-Side Static Bundle for Production
-const hasDistIndex = fs.existsSync(path.join(process.cwd(), "dist", "index.html"));
-
-if (process.env.VERCEL !== "1" && (process.env.NODE_ENV !== "production" || !hasDistIndex)) {
+if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+  const distPath = path.join(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
   const vitePkg = "vite";
   const { createServer: createViteServer } = await import(vitePkg);
   const vite = await createViteServer({
@@ -1967,12 +1971,6 @@ if (process.env.VERCEL !== "1" && (process.env.NODE_ENV !== "production" || !has
     appType: "spa",
   });
   app.use(vite.middlewares);
-} else {
-  const distPath = path.join(process.cwd(), "dist");
-  app.use(express.static(distPath));
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
 }
 
 // Bind to port 3000 as explicitly restricted by the container ingress reverse proxy
