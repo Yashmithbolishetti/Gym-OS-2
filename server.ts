@@ -6,8 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
-const rawSupabaseUrl = (process.env.VITE_SUPABASE_URL || "").trim().replace(/^["']|["']$/g, "");
-const rawSupabaseKey = (process.env.VITE_SUPABASE_ANON_KEY || "").trim().replace(/^["']|["']$/g, "");
+const rawSupabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim().replace(/^["']|["']$/g, "");
+const rawSupabaseKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || "").trim().replace(/^["']|["']$/g, "");
 
 let cleanSupabaseUrl = rawSupabaseUrl;
 // Strip trailing slash if present
@@ -1972,7 +1972,10 @@ async function startVite() {
 }
 
 // Mount Vite Middleware for Development / Server Client-Side Static Bundle for Production
-if (process.env.NODE_ENV === "production" || process.env.VERCEL === "1") {
+if (process.env.VERCEL === "1") {
+  // On Vercel, static files and client-side routing fallback are handled at the CDN edge by vercel.json.
+  // We do not mount static folder or wildcard * routes in the Express app.
+} else if (process.env.NODE_ENV === "production") {
   const distPath = path.join(process.cwd(), "dist");
   app.use(express.static(distPath));
   app.get("*", (req, res) => {
