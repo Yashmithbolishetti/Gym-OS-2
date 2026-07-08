@@ -2,6 +2,15 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Member, Payment, ActivityLog } from "../types";
 import { useAuth } from "./AuthContext";
 
+const apiFetch = (input: RequestInfo | URL, init?: RequestInit) => {
+  const API_URL = import.meta.env.VITE_API_URL || "";
+  let url = input;
+  if (typeof input === "string" && input.startsWith("/api/")) {
+    url = `${API_URL}${input}`;
+  }
+  return fetch(url, init);
+};
+
 export interface ReminderLog {
   id: string;
   member_id: string;
@@ -109,13 +118,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshAll = async () => {
     try {
       const [membersRes, paymentsRes, activitiesRes, settingsRes, remindersRes, alertsRes, gymsRes] = await Promise.all([
-        fetch("/api/members?includeArchived=true"),
-        fetch("/api/payments"),
-        fetch("/api/activities"),
-        fetch("/api/settings"),
-        fetch("/api/reminders/queue"),
-        fetch("/api/notifications"),
-        fetch("/api/admin/gyms")
+        apiFetch("/api/members?includeArchived=true"),
+        apiFetch("/api/payments"),
+        apiFetch("/api/activities"),
+        apiFetch("/api/settings"),
+        apiFetch("/api/reminders/queue"),
+        apiFetch("/api/notifications"),
+        apiFetch("/api/admin/gyms")
       ]);
 
       if (membersRes.ok) setMembers(await membersRes.json());
@@ -138,7 +147,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // 1. Live Instant SSE subscription
     let eventSource: EventSource | null = null;
     try {
-      eventSource = new EventSource("/api/realtime");
+      const API_URL = import.meta.env.VITE_API_URL || "";
+      eventSource = new EventSource(`${API_URL}/api/realtime`);
       eventSource.onmessage = (e) => {
         if (e.data === "update") {
           refreshAll();
@@ -171,7 +181,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Members Actions
   const addMember = async (memberData: Partial<Member>): Promise<Member> => {
     // Default fully functional path for all dashboards (with no limits)
-    const res = await fetch("/api/members", {
+    const res = await apiFetch("/api/members", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(memberData),
@@ -185,7 +195,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const editMember = async (id: string, memberData: Partial<Member>): Promise<Member> => {
-    const res = await fetch(`/api/members/${id}`, {
+    const res = await apiFetch(`/api/members/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(memberData),
@@ -198,14 +208,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteMember = async (id: string): Promise<void> => {
-    const res = await fetch(`/api/members/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/members/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to delete member");
     setMembers((prev) => prev.filter((item) => item.id !== id));
     refreshAll();
   };
 
   const suspendMember = async (id: string): Promise<Member> => {
-    const res = await fetch(`/api/members/${id}/suspend`, { method: "POST" });
+    const res = await apiFetch(`/api/members/${id}/suspend`, { method: "POST" });
     if (!res.ok) throw new Error("Failed to suspend member");
     const m = await res.json();
     refreshAll();
@@ -213,7 +223,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const reactivateMember = async (id: string): Promise<Member> => {
-    const res = await fetch(`/api/members/${id}/reactivate`, { method: "POST" });
+    const res = await apiFetch(`/api/members/${id}/reactivate`, { method: "POST" });
     if (!res.ok) throw new Error("Failed to lift suspension");
     const m = await res.json();
     refreshAll();
@@ -221,7 +231,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const archiveMember = async (id: string): Promise<Member> => {
-    const res = await fetch(`/api/members/${id}/archive`, { method: "POST" });
+    const res = await apiFetch(`/api/members/${id}/archive`, { method: "POST" });
     if (!res.ok) throw new Error("Failed to archive member");
     const m = await res.json();
     refreshAll();
@@ -229,7 +239,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const restoreMember = async (id: string): Promise<Member> => {
-    const res = await fetch(`/api/members/${id}/restore`, { method: "POST" });
+    const res = await apiFetch(`/api/members/${id}/restore`, { method: "POST" });
     if (!res.ok) throw new Error("Failed to restore member");
     const m = await res.json();
     refreshAll();
@@ -238,7 +248,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Payments Actions
   const recordPayment = async (paymentData: Partial<Payment>): Promise<any> => {
-    const res = await fetch("/api/payments", {
+    const res = await apiFetch("/api/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(paymentData),
@@ -250,7 +260,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const editPayment = async (id: string, paymentData: Partial<Payment>): Promise<Payment> => {
-    const res = await fetch(`/api/payments/${id}`, {
+    const res = await apiFetch(`/api/payments/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(paymentData),
@@ -262,14 +272,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const deletePayment = async (id: string): Promise<void> => {
-    const res = await fetch(`/api/payments/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/payments/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("Failed to delete payment");
     refreshAll();
   };
 
   // Settings Actions
   const updateSettings = async (settingsData: Record<string, string>): Promise<Record<string, string>> => {
-    const res = await fetch("/api/settings", {
+    const res = await apiFetch("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settingsData),
@@ -283,7 +293,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Reminders Actions
   const sendBulkReminders = async (memberIds: string[]): Promise<any> => {
-    const res = await fetch("/api/reminders/send-bulk", {
+    const res = await apiFetch("/api/reminders/send-bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ memberIds }),
@@ -296,7 +306,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Admin Gym Management Actions
   const approveGym = async (id: string): Promise<AdminGym> => {
-    const res = await fetch(`/api/admin/gyms/${id}/approve`, { method: "POST" });
+    const res = await apiFetch(`/api/admin/gyms/${id}/approve`, { method: "POST" });
     if (!res.ok) throw new Error("Failed approval request");
     const g = await res.json();
     refreshAll();
@@ -304,7 +314,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const rejectGym = async (id: string): Promise<AdminGym> => {
-    const res = await fetch(`/api/admin/gyms/${id}/reject`, { method: "POST" });
+    const res = await apiFetch(`/api/admin/gyms/${id}/reject`, { method: "POST" });
     if (!res.ok) throw new Error("Failed rejection request");
     const g = await res.json();
     refreshAll();
@@ -312,7 +322,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const suspendGym = async (id: string): Promise<AdminGym> => {
-    const res = await fetch(`/api/admin/gyms/${id}/suspend`, { method: "POST" });
+    const res = await apiFetch(`/api/admin/gyms/${id}/suspend`, { method: "POST" });
     if (!res.ok) throw new Error("Failed suspension request");
     const g = await res.json();
     refreshAll();
@@ -320,7 +330,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const reactivateGym = async (id: string): Promise<AdminGym> => {
-    const res = await fetch(`/api/admin/gyms/${id}/reactivate`, { method: "POST" });
+    const res = await apiFetch(`/api/admin/gyms/${id}/reactivate`, { method: "POST" });
     if (!res.ok) throw new Error("Failed reactivation request");
     const g = await res.json();
     refreshAll();
@@ -328,7 +338,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const renewGym = async (id: string): Promise<AdminGym> => {
-    const res = await fetch(`/api/admin/gyms/${id}/renew`, { method: "POST" });
+    const res = await apiFetch(`/api/admin/gyms/${id}/renew`, { method: "POST" });
     if (!res.ok) throw new Error("Failed renewal request");
     const g = await res.json();
     refreshAll();
@@ -347,7 +357,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       console.error("Failed to parse active uploaded file for AI payload", e);
     }
 
-    const res = await fetch("/api/ai/chat", {
+    const res = await apiFetch("/api/ai/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, history, activeFile }),

@@ -38,7 +38,7 @@ function createSimulatedSupabaseClient() {
     auth: {
       async signUp(params: { email: string; password: string; options?: { data?: any } }): Promise<AuthResponse> {
         try {
-          const res = await fetch('/api/auth/sign-up', {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/auth/sign-up`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -60,7 +60,7 @@ function createSimulatedSupabaseClient() {
 
       async signInWithPassword(params: { email: string; password: string }): Promise<AuthResponse> {
         try {
-          const res = await fetch('/api/auth/sign-in', {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/auth/sign-in`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -81,7 +81,7 @@ function createSimulatedSupabaseClient() {
 
       async signOut(): Promise<{ error: { message: string } | null }> {
         try {
-          await fetch('/api/auth/sign-out', { method: 'POST' });
+          await fetch(`${import.meta.env.VITE_API_URL || ""}/api/auth/sign-out`, { method: 'POST' });
         } catch {}
         setLocalSession(null);
         return { error: null };

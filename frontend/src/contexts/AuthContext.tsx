@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(session.user);
             setGym(null);
           } else {
-            const res = await fetch(`/api/auth/user-status?userId=${userId}`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/auth/user-status?userId=${userId}`);
             if (res.ok) {
               const statusData = await res.json();
               setUser({
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginAs = async (role: 'gym_owner' | 'super_admin', status: 'approved' | 'pending' | 'suspended' = 'approved') => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/demo-login', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/auth/demo-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role, status })
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUserStatus = async () => {
     if (!user || user.role === 'super_admin') return null;
     try {
-      const res = await fetch(`/api/auth/user-status?userId=${user.id}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/auth/user-status?userId=${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setUser(prev => prev ? { ...prev, status: data.status } : null);

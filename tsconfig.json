@@ -17,9 +17,10 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./*"
+        "./frontend/*"
       ]
     },
+    "types": ["vite/client"],
     "allowImportingTsExtensions": true,
     "noEmit": true
   }

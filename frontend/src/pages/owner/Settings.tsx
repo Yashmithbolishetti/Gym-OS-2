@@ -219,7 +219,7 @@ export default function Settings() {
     setSupabaseSyncStatus('loading');
     setSupabaseSyncMessage("Connecting and uploading member records...");
     try {
-      const res = await fetch("/api/supabase/sync-all", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/supabase/sync-all`, {
         method: "POST"
       });
       const data = await res.json();
