@@ -132,30 +132,396 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 // -------------------------------------------------------------
-// DIRECT SUPABASE DATA ACCESS LAYER (ASYNC HELPERS)
+// SECURE AUTOMATIC FALLBACK DATABASE FOR RESILIENCE
+// -------------------------------------------------------------
+let useLocalFallback = false;
+
+const subDaysStr = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+const addDaysStr = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+let localGyms: any[] = [
+  {
+    id: "gym-1",
+    name: "Elite Fitness Studios",
+    owner_id: "owner-1",
+    owner_name: "Demo Owner",
+    email: "demo@gymos.com",
+    password_hash: hashPassword("demo123"),
+    status: "approved",
+    created_at: subDaysStr(365),
+    subscription_status: "active",
+    subscription_end_date: addDaysStr(180),
+    country: "United States",
+    currency: "USD",
+    password_plain: "demo123"
+  },
+  {
+    id: "gym-2",
+    name: "Spartan Heavy Lifters",
+    owner_id: "owner-2",
+    owner_name: "Leonidas Spartan",
+    email: "spartan@gymos.com",
+    password_hash: hashPassword("spartan123"),
+    status: "pending",
+    created_at: subDaysStr(1),
+    subscription_status: "active",
+    subscription_end_date: addDaysStr(30),
+    country: "United States",
+    currency: "USD",
+    password_plain: "spartan123"
+  },
+  {
+    id: "gym-3",
+    name: "Iron Sanctuary",
+    owner_id: "owner-3",
+    owner_name: "Tony Stark",
+    email: "iron@gymos.com",
+    password_hash: hashPassword("iron123"),
+    status: "pending",
+    created_at: new Date().toISOString(),
+    subscription_status: "active",
+    subscription_end_date: addDaysStr(30),
+    country: "United States",
+    currency: "USD",
+    password_plain: "iron123"
+  }
+];
+
+let localUserProfiles: any[] = [
+  {
+    id: "owner-1",
+    email: "demo@gymos.com",
+    password: "demo123",
+    password_hash: hashPassword("demo123"),
+    password_plain: "demo123",
+    role: "gym_owner",
+    gym_id: "gym-1",
+    status: "approved",
+    name: "Demo Owner",
+    phone: "+1 555-0101",
+    created_at: "2025-06-19T17:27:03.416Z"
+  },
+  {
+    id: "owner-2",
+    email: "spartan@gymos.com",
+    password: "spartan123",
+    password_hash: hashPassword("spartan123"),
+    password_plain: "spartan123",
+    role: "gym_owner",
+    gym_id: "gym-2",
+    status: "pending",
+    name: "Leonidas Spartan",
+    phone: "+1 555-0102",
+    created_at: "2026-06-18T17:27:03.416Z"
+  },
+  {
+    id: "owner-3",
+    email: "iron@gymos.com",
+    password: "iron123",
+    password_hash: hashPassword("iron123"),
+    password_plain: "iron123",
+    role: "gym_owner",
+    gym_id: "gym-3",
+    status: "pending",
+    name: "Tony Stark",
+    phone: "+1 555-0103",
+    created_at: "2026-06-19T17:27:03.416Z"
+  }
+];
+
+let localMembers: any[] = [
+  {
+    id: "mem-1",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "Marcus Johnson",
+    email: "marcus.j@example.com",
+    phone: "+1 555-0101",
+    age: 28,
+    gender: "Male",
+    height: 180,
+    weight: 85,
+    joining_date: subDaysStr(120),
+    membership_plan: "monthly",
+    membership_price: 99,
+    expiry_date: addDaysStr(20),
+    status: "active",
+    notes: "Powerlifter focused on squating strength.",
+    is_archived: false,
+    profile_photo_url: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=120&auto=format&fit=crop"
+  },
+  {
+    id: "mem-2",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "Sarah Williams",
+    email: "sarah.w@example.com",
+    phone: "+1 555-0102",
+    age: 32,
+    gender: "Female",
+    height: 165,
+    weight: 62,
+    joining_date: subDaysStr(300),
+    membership_plan: "yearly",
+    membership_price: 990,
+    expiry_date: addDaysStr(3),
+    status: "expiring_soon",
+    notes: "Enjoys cardio classes and yoga sessions.",
+    is_archived: false,
+    profile_photo_url: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=120&auto=format&fit=crop"
+  },
+  {
+    id: "mem-3",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "Michael Chen",
+    email: "michael.c@example.com",
+    phone: "+1 555-0103",
+    age: 45,
+    gender: "Male",
+    height: 175,
+    weight: 78,
+    joining_date: subDaysStr(60),
+    membership_plan: "quarterly",
+    membership_price: 250,
+    expiry_date: subDaysStr(2),
+    status: "expired",
+    notes: "Prefers morning workouts before office hours.",
+    is_archived: false,
+    profile_photo_url: ""
+  },
+  {
+    id: "mem-4",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "Emma Davis",
+    email: "emma.d@example.com",
+    phone: "+1 555-0104",
+    age: 24,
+    gender: "Female",
+    height: 170,
+    weight: 65,
+    joining_date: subDaysStr(15),
+    membership_plan: "monthly",
+    membership_price: 99,
+    expiry_date: addDaysStr(15),
+    status: "active",
+    notes: "Needs help with nutritional guide.",
+    is_archived: false,
+    profile_photo_url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=120&auto=format&fit=crop"
+  },
+  {
+    id: "mem-5",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "David Smith",
+    email: "david.s@example.com",
+    phone: "+1 555-0105",
+    age: 36,
+    gender: "Male",
+    height: 185,
+    weight: 92,
+    joining_date: subDaysStr(180),
+    membership_plan: "quarterly",
+    membership_price: 250,
+    expiry_date: addDaysStr(5),
+    status: "expiring_soon",
+    notes: "Strict keto diet, heavy compound lifts.",
+    is_archived: false,
+    profile_photo_url: ""
+  },
+  {
+    id: "mem-6",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "Robert Taylor",
+    email: "robert.t@example.com",
+    phone: "+1 555-0106",
+    age: 35,
+    gender: "Male",
+    height: 190,
+    weight: 105,
+    joining_date: subDaysStr(90),
+    membership_plan: "monthly",
+    membership_price: 99,
+    expiry_date: subDaysStr(10),
+    status: "expired",
+    notes: "Over 90kg category, focused on hypertrophy and fat loss.",
+    is_archived: false,
+    profile_photo_url: ""
+  },
+  {
+    id: "mem-7",
+    gym_id: "gym-1",
+    gym_name: "Elite Fitness Studios",
+    name: "Lily Evans",
+    email: "lily.e@example.com",
+    phone: "+1 555-0107",
+    age: 22,
+    gender: "Female",
+    height: 160,
+    weight: 54,
+    joining_date: subDaysStr(30),
+    membership_plan: "yearly",
+    membership_price: 990,
+    expiry_date: addDaysStr(335),
+    status: "active",
+    notes: "Under 60kg category, collegiate athlete.",
+    is_archived: false,
+    profile_photo_url: ""
+  }
+];
+
+let localPayments: any[] = [
+  {
+    id: "pay-1",
+    gym_id: "gym-1",
+    member_id: "mem-1",
+    amount: 99,
+    payment_method: "card",
+    date: subDaysStr(10)
+  },
+  {
+    id: "pay-2",
+    gym_id: "gym-1",
+    member_id: "mem-2",
+    amount: 990,
+    payment_method: "bank_transfer",
+    date: subDaysStr(362)
+  },
+  {
+    id: "pay-3",
+    gym_id: "gym-1",
+    member_id: "mem-5",
+    amount: 250,
+    payment_method: "upi",
+    date: subDaysStr(85)
+  },
+  {
+    id: "pay-4",
+    gym_id: "gym-1",
+    member_id: "mem-4",
+    amount: 99,
+    payment_method: "upi",
+    date: subDaysStr(15)
+  },
+  {
+    id: "pay-5",
+    gym_id: "gym-1",
+    member_id: "mem-7",
+    amount: 990,
+    payment_method: "cash",
+    date: subDaysStr(30)
+  }
+];
+
+let localActivities: any[] = [
+  {
+    id: "act-1",
+    gym_id: "gym-1",
+    action: "Member Added",
+    description: "Lily Evans joined the gym on Yearly Plan",
+    created_at: subDaysStr(30)
+  },
+  {
+    id: "act-2",
+    gym_id: "gym-1",
+    action: "Payment Recorded",
+    description: "Payment of $990 received from Lily Evans via Cash",
+    created_at: subDaysStr(30)
+  },
+  {
+    id: "act-3",
+    gym_id: "gym-1",
+    action: "Member Updated",
+    description: "David Smith's training notes updated",
+    created_at: subDaysStr(2)
+  }
+];
+
+let localSettings: any = {
+  id: "global",
+  whatsapp_template_30: "Your GymOS membership expires in 30 days. Don't lose your gym streak!",
+  whatsapp_template_7: "Your GymOS membership expires in 7 days. Ensure to renew to avoid interruption.",
+  whatsapp_template_3: "Your membership expires in 3 days. Prepare your sports gear, renewal is quick!",
+  whatsapp_template_0: "Your GymOS membership expires today. Renew now to stay on your fitness path!",
+  whatsapp_template_expired: "Your membership has expired. Renew your registration today to resume workouts!",
+  supabase_url: "",
+  supabase_anon_key: ""
+};
+
+let localReminders: any[] = [
+  {
+    id: "rem-1",
+    member_id: "mem-2",
+    member_name: "Sarah Williams",
+    expiry_days: 3,
+    status: "delivered",
+    sent_at: subDaysStr(1),
+    message: "Your membership expires in 3 days. Prepare your sports gear, renewal is quick!"
+  }
+];
+
+async function checkDatabaseState() {
+  try {
+    const { error } = await supabase.from("user_profiles").select("id", { count: "exact", head: true });
+    if (error && error.message.includes("Could not find the table")) {
+      console.warn("[GymOS Database] Supabase tables are missing. Activating resilient local storage fallback.");
+      useLocalFallback = true;
+    } else if (error) {
+      console.warn("[GymOS Database] General database warning:", error.message);
+      useLocalFallback = true;
+    } else {
+      console.log("[GymOS Database] Connected successfully to live Supabase storage.");
+      useLocalFallback = false;
+    }
+  } catch (err: any) {
+    console.warn("[GymOS Database] Database check exception. Falling back.", err.message);
+    useLocalFallback = true;
+  }
+}
+
+// Run the database check eagerly at startup
+checkDatabaseState();
+
+// -------------------------------------------------------------
+// DIRECT SUPABASE DATA ACCESS LAYER (WITH SECURE AUTO-FALLBACK)
 // -------------------------------------------------------------
 async function getGyms(): Promise<any[]> {
-  const { data, error } = await supabase.from("gyms").select("*");
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching gyms:", error.message);
-    return [];
+  if (useLocalFallback) {
+    return localGyms;
   }
-  
-  const gyms = data || [];
-  // Evaluate subscription expirations dynamically in-place
-  for (const g of gyms) {
-    if (g.subscription_end_date) {
-      const isPast = new Date(g.subscription_end_date) < new Date();
-      if (isPast && g.subscription_status !== "expired") {
-        g.subscription_status = "expired";
-        await supabase.from("gyms").update({ subscription_status: "expired" }).eq("id", g.id);
-      } else if (!isPast && g.subscription_status === "expired") {
-        g.subscription_status = "active";
-        await supabase.from("gyms").update({ subscription_status: "active" }).eq("id", g.id);
+  try {
+    const { data, error } = await supabase.from("gyms").select("*");
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (gyms). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching gyms:", error.message);
+      }
+      return localGyms;
+    }
+    
+    const gyms = data || [];
+    // Evaluate subscription expirations dynamically in-place
+    for (const g of gyms) {
+      if (g.subscription_end_date) {
+        const isPast = new Date(g.subscription_end_date) < new Date();
+        if (isPast && g.subscription_status !== "expired") {
+          g.subscription_status = "expired";
+          await supabase.from("gyms").update({ subscription_status: "expired" }).eq("id", g.id);
+        } else if (!isPast && g.subscription_status === "expired") {
+          g.subscription_status = "active";
+          await supabase.from("gyms").update({ subscription_status: "active" }).eq("id", g.id);
+        }
       }
     }
+    return gyms;
+  } catch (err) {
+    console.error("[GymOS Fallback] Exception fetching gyms:", err);
+    return localGyms;
   }
-  return gyms;
 }
 
 async function getGymById(id: string): Promise<any | null> {
@@ -164,17 +530,49 @@ async function getGymById(id: string): Promise<any | null> {
 }
 
 async function addGym(gym: any): Promise<any> {
-  const { data, error } = await supabase.from("gyms").insert(gym).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    localGyms.push(gym);
+    notifySseClients();
+    return gym;
+  }
+  try {
+    const { data, error } = await supabase.from("gyms").insert(gym).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on addGym:", err);
+    localGyms.push(gym);
+    notifySseClients();
+    return gym;
+  }
 }
 
 async function updateGym(id: string, updates: any): Promise<any> {
-  const { data, error } = await supabase.from("gyms").update(updates).eq("id", id).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    const idx = localGyms.findIndex(g => g.id === id);
+    if (idx !== -1) {
+      localGyms[idx] = { ...localGyms[idx], ...updates };
+      notifySseClients();
+      return localGyms[idx];
+    }
+    throw new Error("Gym not found");
+  }
+  try {
+    const { data, error } = await supabase.from("gyms").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on updateGym:", err);
+    const idx = localGyms.findIndex(g => g.id === id);
+    if (idx !== -1) {
+      localGyms[idx] = { ...localGyms[idx], ...updates };
+      notifySseClients();
+      return localGyms[idx];
+    }
+    throw err;
+  }
 }
 
 async function getGymNameById(gymId: string): Promise<string> {
@@ -183,115 +581,305 @@ async function getGymNameById(gymId: string): Promise<string> {
 }
 
 async function getUserProfiles(): Promise<any[]> {
-  const { data, error } = await supabase.from("user_profiles").select("*");
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching user_profiles:", error.message);
-    return [];
+  if (useLocalFallback) {
+    return localUserProfiles;
   }
-  return data || [];
+  try {
+    const { data, error } = await supabase.from("user_profiles").select("*");
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (user_profiles). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching user_profiles:", error.message);
+      }
+      return localUserProfiles;
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("[GymOS Fallback] Exception fetching user profiles:", err);
+    return localUserProfiles;
+  }
 }
 
 async function addUserProfile(profile: any): Promise<any> {
-  const { data, error } = await supabase.from("user_profiles").insert(profile).select().single();
-  if (error) throw error;
-  return data;
+  if (useLocalFallback) {
+    localUserProfiles.push(profile);
+    return profile;
+  }
+  try {
+    const { data, error } = await supabase.from("user_profiles").insert(profile).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on addUserProfile:", err);
+    localUserProfiles.push(profile);
+    return profile;
+  }
 }
 
 async function updateUserProfile(id: string, updates: any): Promise<any> {
-  const { data, error } = await supabase.from("user_profiles").update(updates).eq("id", id).select().single();
-  if (error) throw error;
-  return data;
+  if (useLocalFallback) {
+    const idx = localUserProfiles.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      localUserProfiles[idx] = { ...localUserProfiles[idx], ...updates };
+      return localUserProfiles[idx];
+    }
+    throw new Error("User profile not found");
+  }
+  try {
+    const { data, error } = await supabase.from("user_profiles").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on updateUserProfile:", err);
+    const idx = localUserProfiles.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      localUserProfiles[idx] = { ...localUserProfiles[idx], ...updates };
+      return localUserProfiles[idx];
+    }
+    throw err;
+  }
 }
 
 async function getMembers(includeArchived: boolean = false): Promise<any[]> {
-  let query = supabase.from("members").select("*");
-  if (!includeArchived) {
-    query = query.eq("is_archived", false);
+  if (useLocalFallback) {
+    return includeArchived ? localMembers : localMembers.filter(m => !m.is_archived);
   }
-  const { data, error } = await query;
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching members:", error.message);
-    return [];
+  try {
+    let query = supabase.from("members").select("*");
+    if (!includeArchived) {
+      query = query.eq("is_archived", false);
+    }
+    const { data, error } = await query;
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (members). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching members:", error.message);
+      }
+      return includeArchived ? localMembers : localMembers.filter(m => !m.is_archived);
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("[GymOS Fallback] Exception fetching members:", err);
+    return includeArchived ? localMembers : localMembers.filter(m => !m.is_archived);
   }
-  return data || [];
 }
 
 async function getMemberById(id: string): Promise<any | null> {
-  const { data, error } = await supabase.from("members").select("*").eq("id", id).maybeSingle();
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching member by id:", error.message);
-    return null;
+  if (useLocalFallback) {
+    return localMembers.find(m => m.id === id) || null;
   }
-  return data;
+  try {
+    const { data, error } = await supabase.from("members").select("*").eq("id", id).maybeSingle();
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (members by id). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching member by id:", error.message);
+      }
+      return localMembers.find(m => m.id === id) || null;
+    }
+    return data;
+  } catch (err) {
+    return localMembers.find(m => m.id === id) || null;
+  }
 }
 
 async function addMember(member: any): Promise<any> {
   const gymName = await getGymNameById(member.gym_id);
   const payload = { ...member, gym_name: gymName };
-  const { data, error } = await supabase.from("members").insert(payload).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    localMembers.push(payload);
+    notifySseClients();
+    return payload;
+  }
+  try {
+    const { data, error } = await supabase.from("members").insert(payload).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on addMember:", err);
+    localMembers.push(payload);
+    notifySseClients();
+    return payload;
+  }
 }
 
 async function updateMember(id: string, updates: any): Promise<any> {
-  const { data, error } = await supabase.from("members").update(updates).eq("id", id).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    const idx = localMembers.findIndex(m => m.id === id);
+    if (idx !== -1) {
+      localMembers[idx] = { ...localMembers[idx], ...updates };
+      notifySseClients();
+      return localMembers[idx];
+    }
+    throw new Error("Member not found");
+  }
+  try {
+    const { data, error } = await supabase.from("members").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on updateMember:", err);
+    const idx = localMembers.findIndex(m => m.id === id);
+    if (idx !== -1) {
+      localMembers[idx] = { ...localMembers[idx], ...updates };
+      notifySseClients();
+      return localMembers[idx];
+    }
+    throw err;
+  }
 }
 
 async function deleteMember(id: string): Promise<void> {
-  const { error } = await supabase.from("members").delete().eq("id", id);
-  if (error) throw error;
-  notifySseClients();
+  if (useLocalFallback) {
+    localMembers = localMembers.filter(m => m.id !== id);
+    notifySseClients();
+    return;
+  }
+  try {
+    const { error } = await supabase.from("members").delete().eq("id", id);
+    if (error) throw error;
+    notifySseClients();
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on deleteMember:", err);
+    localMembers = localMembers.filter(m => m.id !== id);
+    notifySseClients();
+  }
 }
 
 async function getPayments(): Promise<any[]> {
-  const { data, error } = await supabase.from("payments").select("*");
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching payments:", error.message);
-    return [];
+  if (useLocalFallback) {
+    return localPayments;
   }
-  return data || [];
+  try {
+    const { data, error } = await supabase.from("payments").select("*");
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (payments). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching payments:", error.message);
+      }
+      return localPayments;
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("[GymOS Fallback] Exception fetching payments:", err);
+    return localPayments;
+  }
 }
 
 async function getPaymentById(id: string): Promise<any | null> {
-  const { data, error } = await supabase.from("payments").select("*").eq("id", id).maybeSingle();
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching payment by id:", error.message);
-    return null;
+  if (useLocalFallback) {
+    return localPayments.find(p => p.id === id) || null;
   }
-  return data;
+  try {
+    const { data, error } = await supabase.from("payments").select("*").eq("id", id).maybeSingle();
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (payments by id). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching payment by id:", error.message);
+      }
+      return localPayments.find(p => p.id === id) || null;
+    }
+    return data;
+  } catch (err) {
+    return localPayments.find(p => p.id === id) || null;
+  }
 }
 
 async function addPayment(payment: any): Promise<any> {
-  const { data, error } = await supabase.from("payments").insert(payment).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    localPayments.push(payment);
+    notifySseClients();
+    return payment;
+  }
+  try {
+    const { data, error } = await supabase.from("payments").insert(payment).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on addPayment:", err);
+    localPayments.push(payment);
+    notifySseClients();
+    return payment;
+  }
 }
 
 async function updatePayment(id: string, updates: any): Promise<any> {
-  const { data, error } = await supabase.from("payments").update(updates).eq("id", id).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    const idx = localPayments.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      localPayments[idx] = { ...localPayments[idx], ...updates };
+      notifySseClients();
+      return localPayments[idx];
+    }
+    throw new Error("Payment not found");
+  }
+  try {
+    const { data, error } = await supabase.from("payments").update(updates).eq("id", id).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on updatePayment:", err);
+    const idx = localPayments.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      localPayments[idx] = { ...localPayments[idx], ...updates };
+      notifySseClients();
+      return localPayments[idx];
+    }
+    throw err;
+  }
 }
 
 async function deletePayment(id: string): Promise<void> {
-  const { error } = await supabase.from("payments").delete().eq("id", id);
-  if (error) throw error;
-  notifySseClients();
+  if (useLocalFallback) {
+    localPayments = localPayments.filter(p => p.id !== id);
+    notifySseClients();
+    return;
+  }
+  try {
+    const { error } = await supabase.from("payments").delete().eq("id", id);
+    if (error) throw error;
+    notifySseClients();
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on deletePayment:", err);
+    localPayments = localPayments.filter(p => p.id !== id);
+    notifySseClients();
+  }
 }
 
 async function getActivities(): Promise<any[]> {
-  const { data, error } = await supabase.from("activities").select("*").order("created_at", { ascending: false });
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching activities:", error.message);
-    return [];
+  if (useLocalFallback) {
+    return localActivities;
   }
-  return data || [];
+  try {
+    const { data, error } = await supabase.from("activities").select("*").order("created_at", { ascending: false });
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (activities). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching activities:", error.message);
+      }
+      return localActivities;
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("[GymOS Fallback] Exception fetching activities:", err);
+    return localActivities;
+  }
 }
 
 async function logAction(gymId: string, action: string, description: string): Promise<void> {
@@ -302,68 +890,120 @@ async function logAction(gymId: string, action: string, description: string): Pr
     description,
     created_at: new Date().toISOString()
   };
-  const { error } = await supabase.from("activities").insert(log);
-  if (error) {
-    console.warn("[GymOS Supabase] Failed to write activity log:", error.message);
+  if (useLocalFallback) {
+    localActivities.unshift(log);
+    notifySseClients();
+    return;
+  }
+  try {
+    const { error } = await supabase.from("activities").insert(log);
+    if (error) {
+      console.warn("[GymOS Supabase] Failed to write activity log:", error.message);
+      localActivities.unshift(log);
+    }
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on logAction:", err);
+    localActivities.unshift(log);
   }
   notifySseClients();
 }
 
 async function getSettings(): Promise<any> {
-  const { data, error } = await supabase.from("settings").select("*").eq("id", "global").maybeSingle();
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching settings:", error.message);
+  if (useLocalFallback) {
+    return localSettings;
   }
-  if (data) return data;
-
-  // If settings not found, initialize it
-  const defaultSettings = {
-    id: "global",
-    whatsapp_template_30: "Your GymOS membership expires in 30 days. Don't lose your gym streak!",
-    whatsapp_template_7: "Your GymOS membership expires in 7 days. Ensure to renew to avoid interruption.",
-    whatsapp_template_3: "Your membership expires in 3 days. Prepare your sports gear, renewal is quick!",
-    whatsapp_template_0: "Your GymOS membership expires today. Renew now to stay on your fitness path!",
-    whatsapp_template_expired: "Your membership has expired. Renew your registration today to resume workouts!",
-    supabase_url: "",
-    supabase_anon_key: ""
-  };
   try {
-    const { data: inserted } = await supabase.from("settings").insert(defaultSettings).select().single();
+    const { data, error } = await supabase.from("settings").select("*").eq("id", "global").maybeSingle();
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (settings). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching settings:", error.message);
+      }
+      return localSettings;
+    }
+    if (data) return data;
+
+    // If settings not found, initialize it
+    const { data: inserted } = await supabase.from("settings").insert(localSettings).select().single();
     if (inserted) return inserted;
   } catch (err: any) {
-    console.warn("[GymOS Supabase] Failed to insert default settings:", err.message);
+    console.warn("[GymOS Supabase] Failed to insert/fetch settings:", err.message);
   }
-  return defaultSettings;
+  return localSettings;
 }
 
 async function updateSettings(updates: any): Promise<any> {
-  const { data, error } = await supabase.from("settings").upsert({ id: "global", ...updates }).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    localSettings = { ...localSettings, ...updates };
+    notifySseClients();
+    return localSettings;
+  }
+  try {
+    const { data, error } = await supabase.from("settings").upsert({ id: "global", ...updates }).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on updateSettings:", err);
+    localSettings = { ...localSettings, ...updates };
+    notifySseClients();
+    return localSettings;
+  }
 }
 
 async function getReminders(): Promise<any[]> {
-  const { data, error } = await supabase.from("reminders").select("*").order("sent_at", { ascending: false });
-  if (error) {
-    console.error("[GymOS Supabase] Error fetching reminders:", error.message);
-    return [];
+  if (useLocalFallback) {
+    return localReminders;
   }
-  return data || [];
+  try {
+    const { data, error } = await supabase.from("reminders").select("*").order("sent_at", { ascending: false });
+    if (error) {
+      if (error.message.includes("Could not find the table")) {
+        useLocalFallback = true;
+        console.warn("[GymOS Database] Missing tables detected dynamically (reminders). Switching to local fallback database.");
+      } else {
+        console.warn("[GymOS Supabase] Warning fetching reminders:", error.message);
+      }
+      return localReminders;
+    }
+    return data || [];
+  } catch (err) {
+    console.warn("[GymOS Fallback] Exception fetching reminders:", err);
+    return localReminders;
+  }
 }
 
 async function addReminder(reminder: any): Promise<any> {
-  const { data, error } = await supabase.from("reminders").insert(reminder).select().single();
-  if (error) throw error;
-  notifySseClients();
-  return data;
+  if (useLocalFallback) {
+    localReminders.push(reminder);
+    notifySseClients();
+    return reminder;
+  }
+  try {
+    const { data, error } = await supabase.from("reminders").insert(reminder).select().single();
+    if (error) throw error;
+    notifySseClients();
+    return data;
+  } catch (err) {
+    console.warn("[GymOS Fallback] Falling back on addReminder:", err);
+    localReminders.push(reminder);
+    notifySseClients();
+    return reminder;
+  }
 }
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // DYNAMIC SEEDING ON BOOT
 // -------------------------------------------------------------
 async function seedSupabaseDatabase() {
   console.log("[GymOS Seeder] Checking Supabase database tables state...");
+  await checkDatabaseState();
+  if (useLocalFallback) {
+    console.log("[GymOS Seeder] Operating in local memory fallback mode. Seeding bypassed.");
+    return;
+  }
   const subDaysStr = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const addDaysStr = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 

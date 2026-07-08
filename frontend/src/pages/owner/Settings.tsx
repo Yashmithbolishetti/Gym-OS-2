@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import PhotoUpload from "../../components/shared/PhotoUpload";
+import { getApiUrl } from "../../lib/api";
 
 type SettingsTab = 'general' | 'account' | 'currency' | 'notification' | 'ai' | 'membership' | 'backup' | 'security' | 'database';
 
@@ -219,7 +220,7 @@ export default function Settings() {
     setSupabaseSyncStatus('loading');
     setSupabaseSyncMessage("Connecting and uploading member records...");
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ""}/api/supabase/sync-all`, {
+      const res = await fetch(`${getApiUrl()}/api/supabase/sync-all`, {
         method: "POST"
       });
       const data = await res.json();

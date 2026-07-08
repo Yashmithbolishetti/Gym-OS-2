@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Member, Payment, ActivityLog } from "../types";
 import { useAuth } from "./AuthContext";
+import { getApiUrl } from "../lib/api";
 
 const apiFetch = (input: RequestInfo | URL, init?: RequestInit) => {
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = getApiUrl();
   let url = input;
   if (typeof input === "string" && input.startsWith("/api/")) {
     url = `${API_URL}${input}`;
@@ -147,7 +148,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // 1. Live Instant SSE subscription
     let eventSource: EventSource | null = null;
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "";
+      const API_URL = getApiUrl();
       eventSource = new EventSource(`${API_URL}/api/realtime`);
       eventSource.onmessage = (e) => {
         if (e.data === "update") {
