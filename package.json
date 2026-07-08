@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx backend/server.ts",
-    "build": "vite build frontend && esbuild backend/server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.js",
+    "build": "VITE_API_URL=https://gym-os-2-production.up.railway.app vite build frontend && esbuild backend/server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.js",
     "start": "node dist/server.js",
     "clean": "rm -rf dist frontend/dist backend/dist",
     "lint": "tsc --noEmit"
